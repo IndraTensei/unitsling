@@ -11,21 +11,24 @@ Usage:
     unitsling list                 # list all units
     unitsling categories           # list categories
     unitsling fun                  # show whimsical conversions
+    unitsling repl                 # interactive REPL mode
 
 Examples:
     unitsling 100 miles km
     unitsling 212 F C
     unitsling 1 kg lb
     unitsling fun                  # "1 horse = 745.7 watts" etc.
+    unitsling repl                 # start interactive session
 """
 
 from __future__ import annotations
 
 import sys
 import math
+import readline
 from typing import Callable
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -34,7 +37,8 @@ __version__ = "1.0.0"
 # that take a value in the base unit and return the target value.
 # Base units: meter (length), kilogram (mass), kelvin (temp),
 # liter (volume), m/s (speed), byte (digital), second (time),
-# joule (energy), m² (area), watt (power)
+# joule (energy), m² (area), watt (power), pascal (pressure),
+# hertz (frequency)
 # ─────────────────────────────────────────────────────────────
 
 CONVERSIONS: dict[str, dict[str, str]] = {
@@ -90,6 +94,15 @@ CONVERSIONS: dict[str, dict[str, str]] = {
         "W": "watt", "kW": "kilowatt", "MW": "megawatt",
         "hp": "horsepower", "hp_metric": "metric_horsepower",
         "btu_hr": "btu_per_hour",
+    },
+    "Pressure": {
+        "Pa": "pascal", "kPa": "kilopascal", "MPa": "megapascal",
+        "bar": "bar", "atm": "atmosphere", "psi": "psi",
+        "mmHg": "mm_hg", "torr": "torr",
+    },
+    "Frequency": {
+        "Hz": "hertz", "kHz": "kilohertz", "MHz": "megahertz",
+        "GHz": "gigahertz", "THz": "terahertz",
     },
 }
 
@@ -155,6 +168,17 @@ POWER_FACTORS = {
     "hp": 745.7, "hp_metric": 735.5, "btu_hr": 0.293071,
 }
 
+PRESSURE_FACTORS = {
+    "Pa": 1.0, "kPa": 1e3, "MPa": 1e6,
+    "bar": 1e5, "atm": 101325.0,
+    "psi": 6894.76, "mmHg": 133.322, "torr": 133.322,
+}
+
+FREQUENCY_FACTORS = {
+    "Hz": 1.0, "kHz": 1e3, "MHz": 1e6,
+    "GHz": 1e9, "THz": 1e12,
+}
+
 # ─────────────────────────────────────────────────────────────
 # Temperature conversions (special — not factor-based)
 # ─────────────────────────────────────────────────────────────
@@ -178,7 +202,7 @@ TEMP_CONVERSIONS: dict[tuple[str, str], Callable[[float], float]] = {
 
 FUN_CONVERSIONS = {
     "coffee_to_productivity": {
-        "description": "☕ Coffee → Productivity (lines of code per cup)",
+        "description": "Coffee -> Productivity (lines of code per cup)",
         "conversions": {
             ("cup", "loc"): lambda x: x * 42,  # 42 lines per cup, obviously
             ("cup", "bugs_fixed"): lambda x: x * 3,
@@ -186,52 +210,52 @@ FUN_CONVERSIONS = {
         }
     },
     "pizza_to_eggs": {
-        "description": "🍕 Pizza → Eggs (calorie equivalent)",
+        "description": "Pizza -> Eggs (calorie equivalent)",
         "conversions": {
             ("slice", "egg"): lambda x: x * 1.5,  # ~450 cal per slice, ~70 per egg
             ("whole_pizza", "egg"): lambda x: x * 12,
         }
     },
     "banana_to_energy": {
-        "description": "🍌 Bananas → Energy (kWh equivalent)",
+        "description": "Bananas -> Energy (kWh equivalent)",
         "conversions": {
             ("banana", "kwh"): lambda x: x * 0.000116,  # ~105 kcal per banana
             ("banana", "joule"): lambda x: x * 439320,
         }
     },
     "cat_to_human_years": {
-        "description": "🐱 Cat years → Human years",
+        "description": "Cat years -> Human years",
         "conversions": {
             ("cat_year", "human_year"): lambda x: x * 4 + 16 if x > 1 else x * 15,
         }
     },
     "dog_to_human_years": {
-        "description": "🐕 Dog years → Human years",
+        "description": "Dog years -> Human years",
         "conversions": {
             ("dog_year", "human_year"): lambda x: x * 7,
         }
     },
     "sneezes_to_energy": {
-        "description": "🤧 Sneezes → Energy (joules)",
+        "description": "Sneezes -> Energy (joules)",
         "conversions": {
             ("sneeze", "joule"): lambda x: x * 0.00023,  # ~0.23 mJ per sneeze
         }
     },
     "tweets_to_books": {
-        "description": "🐦 Tweets → Books (word count equivalent)",
+        "description": "Tweets -> Books (word count equivalent)",
         "conversions": {
             ("tweet", "book"): lambda x: x / 28000,  # 280 words/tweet, 80k words/book
         }
     },
     "olympic_pools": {
-        "description": "🏊 Olympic swimming pools → Various",
+        "description": "Olympic swimming pools -> Various",
         "conversions": {
-            ("olympic_pool", "bathtub"): lambda x: x * 16.67,  # 2500 m³ pool, 150L tub
+            ("olympic_pool", "bathtub"): lambda x: x * 16.67,  # 2500 m^3 pool, 150L tub
             ("olympic_pool", "beer_keg"): lambda x: x * 14706,
         }
     },
     "blue_whale": {
-        "description": "🐋 Blue whale → Various",
+        "description": "Blue whale -> Various",
         "conversions": {
             ("blue_whale", "elephant"): lambda x: x * 25,  # ~150t whale, ~6t elephant
             ("blue_whale", "school_bus"): lambda x: x * 1.5,
@@ -239,7 +263,7 @@ FUN_CONVERSIONS = {
         }
     },
     "pizza_to_moon": {
-        "description": "🍕 Pizzas stacked → Distance to the Moon",
+        "description": "Pizzas stacked -> Distance to the Moon",
         "conversions": {
             ("pizza_stack_km", "moon_distance"): lambda x: x / 384400,
         }
@@ -284,6 +308,8 @@ def convert(value: float, from_unit: str, to_unit: str) -> float:
         "Energy": ENERGY_FACTORS,
         "Area": AREA_FACTORS,
         "Power": POWER_FACTORS,
+        "Pressure": PRESSURE_FACTORS,
+        "Frequency": FREQUENCY_FACTORS,
     }
 
     from_cat = find_category(from_unit)
@@ -299,7 +325,7 @@ def convert(value: float, from_unit: str, to_unit: str) -> float:
 
 
 def format_result(value: float) -> str:
-    """Format a number nicely — avoid excessive decimals."""
+    """Format a number nicely -- avoid excessive decimals."""
     if value == 0:
         return "0"
     if abs(value) >= 1e9 or abs(value) < 1e-4:
@@ -311,7 +337,7 @@ def format_result(value: float) -> str:
 
 def list_units():
     """Print all available units grouped by category."""
-    print("\n📐 Available Units by Category\n")
+    print("\nAvailable Units by Category\n")
     for cat, units in CONVERSIONS.items():
         print(f"  {cat}:")
         for abbr, full in units.items():
@@ -321,15 +347,15 @@ def list_units():
 
 def list_categories():
     """Print all categories."""
-    print("\n📂 Categories:\n")
+    print("\nCategories:\n")
     for cat in CONVERSIONS:
-        print(f"  • {cat}")
+        print(f"  - {cat}")
     print()
 
 
 def show_fun():
     """Print whimsical conversions."""
-    print("\n🎪 Whimsical Conversions\n")
+    print("\nWhimsical Conversions\n")
     for key, data in FUN_CONVERSIONS.items():
         print(f"  {data['description']}")
         for (fu, tu), fn in data['conversions'].items():
@@ -347,8 +373,87 @@ def show_fun_convert(value: float, from_unit: str, to_unit: str):
             print(f"\n  {format_result(value)} {from_unit} = {format_result(result)} {to_unit}")
             print(f"  ({data['description']})")
             return
-    print(f"  ❌ Unknown fun conversion: {from_unit} → {to_unit}")
+    print(f"  Unknown fun conversion: {from_unit} -> {to_unit}")
     print("  Run 'unitsling fun' to see available whimsical conversions.")
+
+
+# ─────────────────────────────────────────────────────────────
+# Interactive REPL mode
+# ─────────────────────────────────────────────────────────────
+
+def repl():
+    """Interactive REPL for conversions."""
+    print("unitsling REPL v1.1.0")
+    print("Type 'help' for commands, 'quit' to exit.")
+    print("Type a conversion like: 100 miles km")
+    print()
+
+    while True:
+        try:
+            line = input("unitsling> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nGoodbye!")
+            break
+
+        if not line:
+            continue
+
+        if line.lower() in ("quit", "exit", "q"):
+            print("Goodbye!")
+            break
+
+        if line.lower() == "help":
+            print("  <value> <from> <to>   Convert a value")
+            print("  list                  List all units")
+            print("  categories            List categories")
+            print("  fun                   Show whimsical conversions")
+            print("  fun <val> <from> <to> Do whimsical conversion")
+            print("  help                  Show this help")
+            print("  quit                  Exit REPL")
+            continue
+
+        if line.lower() == "list":
+            list_units()
+            continue
+
+        if line.lower() == "categories":
+            list_categories()
+            continue
+
+        if line.lower() == "fun":
+            show_fun()
+            continue
+
+        parts = line.split()
+
+        # fun conversion: fun <value> <from> <to>
+        if len(parts) == 4 and parts[0] == "fun":
+            try:
+                val = float(parts[1])
+            except ValueError:
+                print(f"  Invalid number: {parts[1]}")
+                continue
+            show_fun_convert(val, parts[2], parts[3])
+            continue
+
+        # standard conversion: <value> <from> <to>
+        if len(parts) == 3:
+            try:
+                value = float(parts[0])
+            except ValueError:
+                print(f"  Invalid number: {parts[0]}")
+                continue
+            from_unit = parts[1]
+            to_unit = parts[2]
+            try:
+                result = convert(value, from_unit, to_unit)
+                formatted = format_result(result)
+                print(f"  {value} {from_unit} = {formatted} {to_unit}")
+            except ValueError as e:
+                print(f"  {e}")
+            continue
+
+        print("  Invalid input. Type 'help' for commands.")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -357,7 +462,7 @@ def show_fun_convert(value: float, from_unit: str, to_unit: str):
 
 def print_help():
     print("""
-🎯 unitsling — The Fun Unit Converter
+unitsling — The Fun Unit Converter
 
 Usage:
     unitsling <value> <from> <to>     Convert a value
@@ -365,6 +470,7 @@ Usage:
     unitsling categories              List categories
     unitsling fun                     Show whimsical conversions
     unitsling fun <value> <from> <to> Do a whimsical conversion
+    unitsling repl                    Start interactive REPL
     unitsling --help                  Show this help
     unitsling --version               Show version
 
@@ -375,6 +481,7 @@ Examples:
     unitsling 1000 MB GB
     unitsling fun 5 cup loc
     unitsling fun 1 blue_whale elephant
+    unitsling repl
 """)
 
 
@@ -397,6 +504,10 @@ def main():
         list_categories()
         return
 
+    if args[0] == "repl":
+        repl()
+        return
+
     if args[0] == "fun":
         if len(args) == 1:
             show_fun()
@@ -405,7 +516,7 @@ def main():
             try:
                 val = float(args[1])
             except ValueError:
-                print(f"❌ Invalid number: {args[1]}")
+                print(f"Invalid number: {args[1]}")
                 sys.exit(1)
             show_fun_convert(val, args[2], args[3])
             return
@@ -414,14 +525,14 @@ def main():
 
     # Standard conversion: value from to
     if len(args) != 3:
-        print("❌ Usage: unitsling <value> <from> <to>")
+        print("Usage: unitsling <value> <from> <to>")
         print("   Run 'unitsling --help' for more info.")
         sys.exit(1)
 
     try:
         value = float(args[0])
     except ValueError:
-        print(f"❌ Invalid number: {args[0]}")
+        print(f"Invalid number: {args[0]}")
         sys.exit(1)
 
     from_unit = args[1]
@@ -432,7 +543,7 @@ def main():
         formatted = format_result(result)
         print(f"\n  {value} {from_unit} = {formatted} {to_unit}\n")
     except ValueError as e:
-        print(f"\n  ❌ {e}\n")
+        print(f"\n  {e}\n")
         sys.exit(1)
 
 

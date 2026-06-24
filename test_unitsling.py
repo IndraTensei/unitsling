@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for unitsling — the fun unit converter."""
+"""Tests for unitsling -- the fun unit converter."""
 
 import pytest
 from unitsling import (
@@ -7,11 +7,12 @@ from unitsling import (
     LENGTH_FACTORS, MASS_FACTORS, VOLUME_FACTORS,
     SPEED_FACTORS, DIGITAL_FACTORS, TIME_FACTORS,
     ENERGY_FACTORS, AREA_FACTORS, POWER_FACTORS,
+    PRESSURE_FACTORS, FREQUENCY_FACTORS,
     TEMP_CONVERSIONS, FUN_CONVERSIONS,
 )
 
 
-# ─── Length ─────────────────────────────────────────────────
+# --- Length ---
 
 class TestLength:
     def test_miles_to_km(self):
@@ -42,7 +43,7 @@ class TestLength:
         assert convert(42, "km", "km") == 42
 
 
-# ─── Mass ───────────────────────────────────────────────────
+# --- Mass ---
 
 class TestMass:
     def test_kg_to_lb(self):
@@ -66,7 +67,7 @@ class TestMass:
         assert abs(result - 6.35029) < 0.001
 
 
-# ─── Temperature ────────────────────────────────────────────
+# --- Temperature ---
 
 class TestTemperature:
     def test_c_to_f_boiling(self):
@@ -94,7 +95,7 @@ class TestTemperature:
         assert abs(result - 32.0) < 0.01
 
 
-# ─── Volume ─────────────────────────────────────────────────
+# --- Volume ---
 
 class TestVolume:
     def test_gallon_to_liter(self):
@@ -110,7 +111,7 @@ class TestVolume:
         assert abs(result - 236.588) < 0.1
 
 
-# ─── Speed ──────────────────────────────────────────────────
+# --- Speed ---
 
 class TestSpeed:
     def test_mach_to_kmph(self):
@@ -130,7 +131,7 @@ class TestSpeed:
         assert abs(result - 1.15078) < 0.001
 
 
-# ─── Digital ────────────────────────────────────────────────
+# --- Digital ---
 
 class TestDigital:
     def test_gb_to_mb(self):
@@ -150,7 +151,7 @@ class TestDigital:
         assert abs(result - 8.0) < 0.001
 
 
-# ─── Time ───────────────────────────────────────────────────
+# --- Time ---
 
 class TestTime:
     def test_hour_to_minute(self):
@@ -170,7 +171,7 @@ class TestTime:
         assert abs(result - 100.0) < 0.001
 
 
-# ─── Energy ─────────────────────────────────────────────────
+# --- Energy ---
 
 class TestEnergy:
     def test_kcal_to_joule(self):
@@ -186,7 +187,7 @@ class TestEnergy:
         assert abs(result - 1055.06) < 0.1
 
 
-# ─── Area ───────────────────────────────────────────────────
+# --- Area ---
 
 class TestArea:
     def test_acre_to_m2(self):
@@ -202,7 +203,7 @@ class TestArea:
         assert abs(result - 1e6) < 0.001
 
 
-# ─── Power ──────────────────────────────────────────────────
+# --- Power ---
 
 class TestPower:
     def test_hp_to_watt(self):
@@ -214,7 +215,51 @@ class TestPower:
         assert abs(result - 1000.0) < 0.001
 
 
-# ─── Formatting ─────────────────────────────────────────────
+# --- Pressure ---
+
+class TestPressure:
+    def test_atm_to_psi(self):
+        result = convert(1, "atm", "psi")
+        assert abs(result - 14.6959) < 0.001
+
+    def test_bar_to_pa(self):
+        result = convert(1, "bar", "Pa")
+        assert abs(result - 100000.0) < 0.001
+
+    def test_psi_to_kpa(self):
+        result = convert(1, "psi", "kPa")
+        assert abs(result - 6.89476) < 0.001
+
+    def test_mmhg_to_pa(self):
+        result = convert(1, "mmHg", "Pa")
+        assert abs(result - 133.322) < 0.01
+
+    def test_torr_to_atm(self):
+        result = convert(760, "torr", "atm")
+        assert abs(result - 1.0) < 0.001
+
+
+# --- Frequency ---
+
+class TestFrequency:
+    def test_ghz_to_mhz(self):
+        result = convert(1, "GHz", "MHz")
+        assert abs(result - 1000.0) < 0.001
+
+    def test_thz_to_ghz(self):
+        result = convert(1, "THz", "GHz")
+        assert abs(result - 1000.0) < 0.001
+
+    def test_hz_to_khz(self):
+        result = convert(1000, "Hz", "kHz")
+        assert abs(result - 1.0) < 0.001
+
+    def test_mhz_to_hz(self):
+        result = convert(1, "MHz", "Hz")
+        assert abs(result - 1e6) < 0.001
+
+
+# --- Formatting ---
 
 class TestFormatting:
     def test_zero(self):
@@ -236,7 +281,7 @@ class TestFormatting:
         assert "e-" in result
 
 
-# ─── Category lookup ────────────────────────────────────────
+# --- Category lookup ---
 
 class TestCategory:
     def test_find_length(self):
@@ -245,11 +290,17 @@ class TestCategory:
     def test_find_temp(self):
         assert find_category("F") == "Temperature"
 
+    def test_find_pressure(self):
+        assert find_category("psi") == "Pressure"
+
+    def test_find_frequency(self):
+        assert find_category("GHz") == "Frequency"
+
     def test_find_unknown(self):
         assert find_category("foobar") is None
 
 
-# ─── Error handling ─────────────────────────────────────────
+# --- Error handling ---
 
 class TestErrors:
     def test_cross_category_raises(self):
@@ -261,7 +312,7 @@ class TestErrors:
             convert(1, "foo", "bar")
 
 
-# ─── Whimsical conversions ──────────────────────────────────
+# --- Whimsical conversions ---
 
 class TestFun:
     def test_coffee_to_loc(self):
