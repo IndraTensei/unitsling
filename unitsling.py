@@ -25,10 +25,11 @@ from __future__ import annotations
 
 import sys
 import math
+import json
 import readline
 from typing import Callable
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -104,6 +105,14 @@ CONVERSIONS: dict[str, dict[str, str]] = {
         "Hz": "hertz", "kHz": "kilohertz", "MHz": "megahertz",
         "GHz": "gigahertz", "THz": "terahertz",
     },
+    "Force": {
+        "N": "newton", "kN": "kilonewton", "dyn": "dyne",
+        "lbf": "pound_force", "kgf": "kilogram_force",
+    },
+    "Angle": {
+        "deg": "degree", "rad": "radian", "grad": "gradian",
+        "arcmin": "arcminute", "arcsec": "arcsecond", "rev": "revolution",
+    },
 }
 
 # ─────────────────────────────────────────────────────────────
@@ -177,6 +186,16 @@ PRESSURE_FACTORS = {
 FREQUENCY_FACTORS = {
     "Hz": 1.0, "kHz": 1e3, "MHz": 1e6,
     "GHz": 1e9, "THz": 1e12,
+}
+
+FORCE_FACTORS = {
+    "N": 1.0, "kN": 1e3, "dyn": 1e-5,
+    "lbf": 4.4482216153, "kgf": 9.80665,
+}
+
+ANGLE_FACTORS = {
+    "deg": 1.0, "rad": 180 / math.pi, "grad": 0.9,
+    "arcmin": 1/60, "arcsec": 1/3600, "rev": 360.0,
 }
 
 # ─────────────────────────────────────────────────────────────
@@ -310,6 +329,8 @@ def convert(value: float, from_unit: str, to_unit: str) -> float:
         "Power": POWER_FACTORS,
         "Pressure": PRESSURE_FACTORS,
         "Frequency": FREQUENCY_FACTORS,
+        "Force": FORCE_FACTORS,
+        "Angle": ANGLE_FACTORS,
     }
 
     from_cat = find_category(from_unit)
@@ -365,13 +386,23 @@ def show_fun():
         print()
 
 
-def show_fun_convert(value: float, from_unit: str, to_unit: str):
+def show_fun_convert(value: float, from_unit: str, to_unit: str, json_output: bool = False):
     """Perform a whimsical conversion."""
     for key, data in FUN_CONVERSIONS.items():
         if (from_unit, to_unit) in data["conversions"]:
             result = data["conversions"][(from_unit, to_unit)](value)
-            print(f"\n  {format_result(value)} {from_unit} = {format_result(result)} {to_unit}")
-            print(f"  ({data['description']})")
+            if json_output:
+                print(json.dumps({
+                    "value": value,
+                    "from": from_unit,
+                    "to": to_unit,
+                    "result": result,
+                    "result_formatted": format_result(result),
+                    "description": data["description"],
+                }))
+            else:
+                print(f"\n  {format_result(value)} {from_unit} = {format_result(result)} {to_unit}")
+                print(f"  ({data['description']})")
             return
     print(f"  Unknown fun conversion: {from_unit} -> {to_unit}")
     print("  Run 'unitsling fun' to see available whimsical conversions.")
@@ -383,7 +414,7 @@ def show_fun_convert(value: float, from_unit: str, to_unit: str):
 
 def repl():
     """Interactive REPL for conversions."""
-    print("unitsling REPL v1.1.0")
+    print("unitsling REPL v1.2.0")
     print("Type 'help' for commands, 'quit' to exit.")
     print("Type a conversion like: 100 miles km")
     print()
@@ -471,8 +502,12 @@ Usage:
     unitsling fun                     Show whimsical conversions
     unitsling fun <value> <from> <to> Do a whimsical conversion
     unitsling repl                    Start interactive REPL
+    unitsling --json                  Emit machine-readable JSON
     unitsling --help                  Show this help
     unitsling --version               Show version
+
+Use --json before a conversion to get JSON output, e.g.:
+    unitsling --json 100 miles km
 
 Examples:
     unitsling 100 miles km
@@ -496,6 +531,11 @@ def main():
         print(f"unitsling v{__version__}")
         return
 
+    json_output = False
+    if "--json" in args:
+        json_output = True
+        args = [a for a in args if a != "--json"]
+
     if args[0] == "list":
         list_units()
         return
@@ -518,7 +558,7 @@ def main():
             except ValueError:
                 print(f"Invalid number: {args[1]}")
                 sys.exit(1)
-            show_fun_convert(val, args[2], args[3])
+            show_fun_convert(val, args[2], args[3], json_output=json_output)
             return
         print("Usage: unitsling fun <value> <from> <to>")
         sys.exit(1)
@@ -541,7 +581,16 @@ def main():
     try:
         result = convert(value, from_unit, to_unit)
         formatted = format_result(result)
-        print(f"\n  {value} {from_unit} = {formatted} {to_unit}\n")
+        if json_output:
+            print(json.dumps({
+                "value": value,
+                "from": from_unit,
+                "to": to_unit,
+                "result": result,
+                "result_formatted": formatted,
+            }))
+        else:
+            print(f"\n  {value} {from_unit} = {formatted} {to_unit}\n")
     except ValueError as e:
         print(f"\n  {e}\n")
         sys.exit(1)

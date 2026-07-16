@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Tests for unitsling -- the fun unit converter."""
 
+import math
 import pytest
 from unitsling import (
-    convert, format_result, find_category,
+    convert, format_result, find_category, main,
     LENGTH_FACTORS, MASS_FACTORS, VOLUME_FACTORS,
     SPEED_FACTORS, DIGITAL_FACTORS, TIME_FACTORS,
     ENERGY_FACTORS, AREA_FACTORS, POWER_FACTORS,
@@ -335,6 +336,70 @@ class TestFun:
         from unitsling import FUN_CONVERSIONS
         fn = FUN_CONVERSIONS["tweets_to_books"]["conversions"][("tweet", "book")]
         assert abs(fn(28000) - 1.0) < 0.01
+
+
+# --- Force (new category) ---
+
+class TestForce:
+    def test_lbf_to_newton(self):
+        result = convert(1, "lbf", "N")
+        assert abs(result - 4.4482216153) < 0.001
+
+    def test_kn_to_newton(self):
+        result = convert(1, "kN", "N")
+        assert abs(result - 1000.0) < 0.001
+
+    def test_dyn_to_newton(self):
+        result = convert(1e5, "dyn", "N")
+        assert abs(result - 1.0) < 0.001
+
+    def test_kgf_to_newton(self):
+        result = convert(1, "kgf", "N")
+        assert abs(result - 9.80665) < 0.001
+
+
+# --- Angle (new category) ---
+
+class TestAngle:
+    def test_deg_to_rad(self):
+        result = convert(180, "deg", "rad")
+        assert abs(result - math.pi) < 1e-9
+
+    def test_rev_to_deg(self):
+        result = convert(1, "rev", "deg")
+        assert abs(result - 360.0) < 0.001
+
+    def test_grad_to_deg(self):
+        result = convert(100, "grad", "deg")
+        assert abs(result - 90.0) < 0.001
+
+    def test_arcmin_to_deg(self):
+        result = convert(60, "arcmin", "deg")
+        assert abs(result - 1.0) < 0.001
+
+
+# --- JSON output (new flag) ---
+
+class TestJsonOutput:
+    def test_json_flag_emit(self, capsys):
+        import json
+        import sys
+        sys.argv = ["unitsling", "--json", "100", "mi", "km"]
+        main()
+        captured = capsys.readouterr()
+        data = json.loads(captured.out.strip())
+        assert abs(data["result"] - 160.9344) < 0.001
+        assert data["from"] == "mi"
+        assert data["to"] == "km"
+
+    def test_json_fun_flag(self, capsys):
+        import json
+        import sys
+        sys.argv = ["unitsling", "fun", "--json", "1", "blue_whale", "elephant"]
+        main()
+        captured = capsys.readouterr()
+        data = json.loads(captured.out.strip())
+        assert data["result"] == 25
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Version](https://img.shields.io/badge/version-1.1.0-orange)
+![Version](https://img.shields.io/badge/version-1.2.0-orange)
 
 ---
 
@@ -18,6 +18,7 @@
 - **Zero dependencies** -- just Python 3.8+, nothing else
 - **Whimsical mode** -- convert coffee to code, pizza to eggs, blue whales to elephants
 - **Smart formatting** -- scientific notation for extreme values, clean decimals for normal ones
+- **Machine-readable output** -- pass `--json` to emit conversion results as JSON for scripting
 - **Interactive REPL** -- run `unitsling repl` for a conversational conversion session
 - **Self-documenting** -- built-in help, unit listing, and category browser
 
@@ -37,6 +38,8 @@
 | Power      | W, kW, MW, hp, btu/hr                 |
 | Pressure   | Pa, kPa, bar, atm, psi, mmHg, torr    |
 | Frequency  | Hz, kHz, MHz, GHz, THz                 |
+| Force      | N, kN, dyn, lbf, kgf                   |
+| Angle      | deg, rad, grad, arcmin, arcsec, rev   |
 
 ## Installation
 
@@ -109,6 +112,18 @@ unitsling 1 atm psi
 # Frequency
 unitsling 1 GHz MHz
 # -> 1 GHz = 1000 MHz
+```
+
+### Machine-readable JSON output
+
+Pass `--json` before a conversion to get the result as a JSON object, useful for piping into scripts or other tools:
+
+```bash
+unitsling --json 100 mi km
+# -> {"value": 100.0, "from": "mi", "to": "km", "result": 160.9344, "result_formatted": "160.9344"}
+
+unitsling fun --json 1 blue_whale elephant
+# -> {"value": 1.0, "from": "blue_whale", "to": "elephant", "result": 25.0, "result_formatted": "25", "description": "Blue whale -> Various"}
 ```
 
 ### List all units
@@ -199,8 +214,8 @@ Contributions are welcome! Here's how:
 5. Submit a pull request
 
 Ideas for contributions:
-- New unit categories (force, luminosity, etc.)
-- More whimsical conversions
+- More units within existing categories (e.g. astronomical, nautical)
+- Additional whimsical conversions
 - Localization support
 - Shell completions
 
